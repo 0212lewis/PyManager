@@ -4,7 +4,7 @@
 		<el-col :span="24" class="toolbar" style="padding-bottom: 0px;">
 			<el-form :inline="true" :model="filters">
 				<el-form-item>
-					<el-input v-model="filters.name" placeholder="姓名"></el-input>
+					<el-input v-model="filters.name" placeholder="请输入项目名称"></el-input>
 				</el-form-item>
 				<el-form-item>
 					<el-button type="primary" v-on:click="getUsers">查询</el-button>
@@ -21,15 +21,28 @@
 			</el-table-column>
 			<el-table-column type="index" width="60">
 			</el-table-column>
-			<el-table-column prop="name" label="姓名" width="120" sortable>
+			<el-table-column prop="name" label="项目名称" width="180" sortable>
 			</el-table-column>
-			<el-table-column prop="sex" label="性别" width="100" :formatter="formatSex" sortable>
+			<el-table-column prop="operationStatu" label="运行状态" width="150"  sortable >
+				<template slot-scope="scope">
+					<span :class="{ 'operation-stop': scope.row.operationStatu == 'STOP','operation-running': scope.row.operationStatu == 'RUNNING','operation-debug': scope.row.operationStatu == 'DEBUG','operation-checking': scope.row.operationStatu == 'CHECKING','operation-todo': scope.row.operationStatu == 'TODO'}"
+						  style="color: white;text-align: center;padding: 8px">
+						{{ scope.row.operationStatu }}
+					</span>
+				</template>
 			</el-table-column>
-			<el-table-column prop="age" label="年龄" width="100" sortable>
+
+			<el-table-column label="维护状态" width="150" sortable>
+				<template slot-scope="scope">
+					<span :class="{ 'operation-stop': scope.row.preserveStatu == '待修复','operation-todo': scope.row.preserveStatu == '待开发','operation-debug': scope.row.preserveStatu == '数据停更','operation-running': scope.row.preserveStatu == '已维护'}"
+						  style="color: white;text-align: center;padding: 8px">
+						{{ scope.row.preserveStatu }}
+					</span>
+				</template>
 			</el-table-column>
-			<el-table-column prop="birth" label="生日" width="120" sortable>
+			<el-table-column prop="date" label="上次维护日期" width="180">
 			</el-table-column>
-			<el-table-column prop="addr" label="地址" min-width="180" sortable>
+			<el-table-column prop="technician" label="操作人员" width="150" sortable>
 			</el-table-column>
 			<el-table-column label="操作" width="150">
 				<template scope="scope">
@@ -48,24 +61,46 @@
 
 		<!--编辑界面-->
 		<el-dialog title="编辑" v-model="editFormVisible" :close-on-click-modal="false">
-			<el-form :model="editForm" label-width="80px" :rules="editFormRules" ref="editForm">
-				<el-form-item label="姓名" prop="name">
+			<el-form :model="editForm" label-width="100px" :rules="editFormRules" ref="editForm">
+				<el-form-item label="项目名称" prop="name">
 					<el-input v-model="editForm.name" auto-complete="off"></el-input>
 				</el-form-item>
-				<el-form-item label="性别">
-					<el-radio-group v-model="editForm.sex">
-						<el-radio class="radio" :label="1">男</el-radio>
-						<el-radio class="radio" :label="0">女</el-radio>
-					</el-radio-group>
+				<el-form-item label="运行状态">
+					<template>
+						<el-select v-model="editForm.operationStatu">
+							<el-option
+									v-for="item in operationStatusOptions"
+									:key="item.value"
+									:value="item.value">
+							</el-option>
+						</el-select>
+					</template>
 				</el-form-item>
-				<el-form-item label="年龄">
-					<el-input-number v-model="editForm.age" :min="0" :max="200"></el-input-number>
+				<el-form-item label="维护状态">
+					<template>
+						<el-select v-model="editForm.preserveStatu">
+							<el-option
+									v-for="item in statusOptions"
+									:key="item.value"
+									:value="item.value">
+							</el-option>
+						</el-select>
+					</template>
 				</el-form-item>
-				<el-form-item label="生日">
-					<el-date-picker type="date" placeholder="选择日期" v-model="editForm.birth"></el-date-picker>
+
+				<el-form-item label="上次维护日期">
+					<el-date-picker type="date" v-model="editForm.date"></el-date-picker>
 				</el-form-item>
-				<el-form-item label="地址">
-					<el-input type="textarea" v-model="editForm.addr"></el-input>
+				<el-form-item label="操作人员">
+					<template>
+						<el-select v-model="editForm.technician">
+							<el-option
+									v-for="item in technicianOptions"
+									:key="item.value"
+									:value="item.value">
+							</el-option>
+						</el-select>
+					</template>
 				</el-form-item>
 			</el-form>
 			<div slot="footer" class="dialog-footer">
@@ -105,17 +140,53 @@
 </template>
 
 <script>
-	import util from '../../common/js/util'
+	import util from '../common/js/util'
 	//import NProgress from 'nprogress'
-	import { getUserListPage, removeUser, batchRemoveUser, editUser, addUser } from '../../api/api';
+	import { getUserListPage, removeUser, batchRemoveUser, editUser, addUser } from '../api/api';
 
 	export default {
 		data() {
 			return {
+				operationStatusOptions:[{
+					value: 'RUNNING'
+				}, {
+					value: 'STOP'
+				}, {
+					value: 'CHECKING'
+				}, {
+					value: 'DEBUG'
+				}, {
+					value: 'TODO'
+				}],
+				operationStatuValue:'',
+				preserveStatusOptions: [{
+					value: '已维护'
+				}, {
+					value: '待修复'
+				}, {
+					value: '数据停更'
+				}, {
+					value: '待开发'
+				}],
+				preserveStatuValue: '',
+
+				technicianOptions: [{
+					value: '陈远志'
+				},{
+					value: '宋铮'
+				}],
 				filters: {
 					name: ''
 				},
-				users: [],
+				users: [
+					{"name":"Adobe","operationStatu":"RUNNING","preserveStatu":"已维护","date":"2019-07-04","technician":"陈远志"},
+					{"name":"easyaq","operationStatu":"STOP","preserveStatu":"待修复","date":"2019-07-04","technician":"陈远志"},
+					{"name":"securitynewspaper","operationStatu":"RUNNING","preserveStatu":"数据停更","date":"2019-07-04","technician":"陈远志"},
+					{"name":"vuldb","operationStatu":"DEBUG","preserveStatu":"待修复","date":"2019-07-04","technician":"陈远志"},
+					{"name":"vuldb5","operationStatu":"CHECKING","preserveStatu":"待修复","date":"2019-07-04","technician":"陈远志"},
+
+
+				],
 				total: 0,
 				page: 1,
 				listLoading: false,
@@ -125,17 +196,16 @@
 				editLoading: false,
 				editFormRules: {
 					name: [
-						{ required: true, message: '请输入姓名', trigger: 'blur' }
+						{ required: true, message: '请输入名称', trigger: 'blur' }
 					]
 				},
 				//编辑界面数据
 				editForm: {
-					id: 0,
 					name: '',
-					sex: -1,
-					age: 0,
-					birth: '',
-					addr: ''
+					operationStatu:'',
+					preserveStatu: '',
+					date: '',
+					technician: ''
 				},
 
 				addFormVisible: false,//新增界面是否显示
@@ -157,10 +227,6 @@
 			}
 		},
 		methods: {
-			//性别显示转换
-			formatSex: function (row, column) {
-				return row.sex == 1 ? '男' : row.sex == 0 ? '女' : '未知';
-			},
 			handleCurrentChange(val) {
 				this.page = val;
 				this.getUsers();
@@ -292,12 +358,33 @@
 			}
 		},
 		mounted() {
-			this.getUsers();
+			// this.getUsers();
 		}
 	}
 
 </script>
 
 <style scoped>
-
+	.el-dropdown-link {
+		cursor: pointer;
+		color: #409EFF;
+	}
+	.el-icon-arrow-down {
+		font-size: 12px;
+	}
+	.operation-running{
+		background-color: #5cb85c;
+	}
+	.operation-stop{
+		background-color: #d9534f;
+	}
+	.operation-checking{
+		background-color: #ffde10;
+	}
+	.operation-debug{
+		background-color: #428bca;
+	}
+	.operation-todo{
+		background-color: #f0ad4e;
+	}
 </style>
